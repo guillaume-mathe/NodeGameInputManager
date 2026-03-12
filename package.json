@@ -1,0 +1,42 @@
+{
+  "name": "node-game-input-manager",
+  "description": "Intent-mapping input layer for node-game-client: remappable bindings, digital/analog intents, debounce, poll()-based",
+  "author": {
+    "email": "guillaume.mathe@gmail.com",
+    "name": "Guillaume MATHE"
+  },
+  "version": "0.0.1",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/node-game-input-manager.js",
+      "default": "./dist/node-game-input-manager.js"
+    },
+    "./src/*": "./src/*"
+  },
+  "module": "./dist/node-game-input-manager.js",
+  "browser": "./dist/node-game-input-manager.js",
+  "types": "./dist/types/index.d.ts",
+  "sideEffects": false,
+  "files": [
+    "dist/",
+    "src/"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "prebuild": "rm -rf dist",
+    "build:bundle": "node build.js",
+    "build:types": "tsc",
+    "build": "node build.js && tsc",
+    "prepublishOnly": "npm run build",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
