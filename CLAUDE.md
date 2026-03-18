@@ -36,7 +36,7 @@ npm install
 
 ### Intent Constants (`src/intents.js`)
 
-Frozen map of intent name → `{ type: "digital" | "analog" }`. 22 intents across movement, actions, navigation, camera, modifiers, and interaction categories.
+Frozen map of intent name → `{ type: "digital" | "analog" }`. 26 intents across movement, actions, navigation, camera, modifiers, and interaction categories.
 
 ### Binding System (`src/bindings.js`)
 

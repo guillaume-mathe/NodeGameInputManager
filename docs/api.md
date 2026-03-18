@@ -186,7 +186,7 @@ import { INTENTS, INTENT_NAMES } from "node-game-input-manager";
 
 ### `INTENTS: Record<string, { type: "digital" | "analog" }>`
 
-Frozen map of all 24 intent names to their type metadata.
+Frozen map of all 28 intent names to their type metadata.
 
 ```js
 INTENTS.JUMP    // { type: "digital" }
@@ -205,6 +205,10 @@ Array of all intent name strings. Useful for iteration.
 | `MOVE_DOWN` | digital |
 | `MOVE_LEFT` | digital |
 | `MOVE_RIGHT` | digital |
+| `FORWARD` | digital |
+| `BACKWARD` | digital |
+| `STRAFE_LEFT` | digital |
+| `STRAFE_RIGHT` | digital |
 | `MOVE_X` | analog |
 | `MOVE_Y` | analog |
 | `PRIMARY` | digital |

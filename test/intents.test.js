@@ -6,8 +6,8 @@ describe("INTENTS", () => {
     expect(Object.isFrozen(INTENTS)).toBe(true);
   });
 
-  it("has 24 intents", () => {
-    expect(INTENT_NAMES.length).toBe(24);
+  it("has 28 intents", () => {
+    expect(INTENT_NAMES.length).toBe(28);
   });
 
   it("every intent has a valid type", () => {

@@ -16,6 +16,12 @@ export const INTENTS = Object.freeze({
   MOVE_LEFT:  { type: "digital" },
   MOVE_RIGHT: { type: "digital" },
 
+  // Movement — 3D / FPS
+  FORWARD:      { type: "digital" },
+  BACKWARD:     { type: "digital" },
+  STRAFE_LEFT:  { type: "digital" },
+  STRAFE_RIGHT: { type: "digital" },
+
   // Movement — analog
   MOVE_X: { type: "analog" },
   MOVE_Y: { type: "analog" },

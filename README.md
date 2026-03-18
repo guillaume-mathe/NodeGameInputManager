@@ -48,11 +48,11 @@ Keyboard/Gamepad  →  Bindings  →  IntentManager.poll()  →  Intent states
 
 ## Intents
 
-24 built-in intents across 7 categories:
+28 built-in intents across 7 categories:
 
 | Category | Digital | Analog |
 |---|---|---|
-| Movement | `MOVE_UP` `MOVE_DOWN` `MOVE_LEFT` `MOVE_RIGHT` | `MOVE_X` `MOVE_Y` |
+| Movement | `MOVE_UP` `MOVE_DOWN` `MOVE_LEFT` `MOVE_RIGHT` `FORWARD` `BACKWARD` `STRAFE_LEFT` `STRAFE_RIGHT` | `MOVE_X` `MOVE_Y` |
 | Actions | `PRIMARY` `SECONDARY` `TERTIARY` | |
 | Navigation | `CONFIRM` `CANCEL` `PAUSE` `MENU` | |
 | Camera | `ZOOM_IN` `ZOOM_OUT` | `AIM_X` `AIM_Y` |
