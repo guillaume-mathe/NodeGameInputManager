@@ -36,7 +36,7 @@ npm install
 
 ### Intent Constants (`src/intents.js`)
 
-Frozen map of intent name → `{ type: "digital" | "analog" }`. 26 intents across movement, actions, navigation, camera, modifiers, and interaction categories.
+Frozen map of intent name → `{ type: "digital" | "analog" }`. 28 intents across movement, actions, navigation, camera, modifiers, and interaction categories.
 
 ### Binding System (`src/bindings.js`)
 
@@ -44,7 +44,7 @@ Bindings are JSON-serializable objects `{ intent, source, value? }` that map dev
 
 ### IntentManager (`src/IntentManager.js`)
 
-Core class. Owns devices + bindings, produces poll() output with `active`, `justPressed`, `justReleased`, `value` for every intent. Supports per-intent debounce (suppresses `justPressed` edge only, not `active`). Runtime rebinding via `setBindings()`, `addBinding()`, `removeBinding()`.
+Core class. Owns devices + bindings, produces poll() output with `active`, `justPressed`, `justReleased`, `value` for every intent. Supports per-intent debounce (suppresses `justPressed` edge only, not `active`). Runtime rebinding via `setBindings()`, `addBinding()`, `removeBinding()`. Runtime intent remapping via `setIntentMap()` / `clearIntentMap()` for illness effects (e.g. 180° reverse, 90° rotation). Custom intent definitions via `customIntents` constructor option or `registerIntent()` / `unregisterIntent()` at runtime.
 
 ### Device Layer (`src/devices/`)
 

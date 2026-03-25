@@ -4,6 +4,9 @@
  * Consumes raw device input via KeyboardDevice and GamepadDevice,
  * resolves bindings to produce abstract intent states, and provides
  * edge detection (justPressed/justReleased) with optional per-intent debounce.
+ *
+ * Supports runtime intent remapping (e.g. for illness effects that swap
+ * directional controls) and custom intent definitions beyond the built-in set.
  */
 
 import { KeyboardDevice } from "./devices/KeyboardDevice.js";
@@ -12,6 +15,7 @@ import { INTENTS, INTENT_NAMES } from "./intents.js";
 import { createDefaultBindings } from "./bindings.js";
 
 /**
+ * @typedef {import("./intents.js").IntentDef} IntentDef
  * @typedef {import("./bindings.js").Binding} Binding
  *
  * @typedef {object} IntentState
@@ -33,6 +37,7 @@ export class IntentManager {
    * @param {Binding[]} [opts.bindings]
    * @param {Record<string, number>} [opts.debounce]
    * @param {EventTarget} [opts.keyboardTarget]
+   * @param {Record<string, IntentDef>} [opts.customIntents] Additional game-specific intents
    */
   constructor({
     keyboard = true,
@@ -42,7 +47,22 @@ export class IntentManager {
     bindings,
     debounce = {},
     keyboardTarget,
+    customIntents = {},
   } = {}) {
+    // Validate custom intents don't collide with built-in ones
+    for (const name of Object.keys(customIntents)) {
+      if (INTENTS[name]) {
+        throw new Error(`Custom intent "${name}" collides with built-in intent`);
+      }
+      _validateIntentDef(name, customIntents[name]);
+    }
+
+    /** @type {Record<string, IntentDef>} Merged intent registry (built-in + custom). */
+    this._intents = { ...INTENTS, ...customIntents };
+
+    /** @type {string[]} */
+    this._intentNames = Object.keys(this._intents);
+
     /** @type {KeyboardDevice | null} */
     this._keyboard = keyboard ? new KeyboardDevice(keyboardTarget) : null;
 
@@ -60,12 +80,15 @@ export class IntentManager {
 
     /** @type {Map<string, boolean>} Previous frame active state for edge detection. */
     this._prevActive = new Map();
-    for (const name of INTENT_NAMES) {
+    for (const name of this._intentNames) {
       this._prevActive.set(name, false);
     }
 
     /** @type {Map<string, number>} Last trigger time for debounce. */
     this._lastTriggerTime = new Map();
+
+    /** @type {Map<string, string> | null} Intent remap table (source → target). */
+    this._intentMap = null;
 
     /** @type {(() => number) | null} */
     this._now = null;
@@ -86,20 +109,29 @@ export class IntentManager {
     // 2. Init result — all intents zeroed
     /** @type {PollResult} */
     const result = {};
-    for (const name of INTENT_NAMES) {
+    for (const name of this._intentNames) {
       result[name] = { active: false, justPressed: false, justReleased: false, value: 0 };
     }
 
-    // 3. Resolve each binding
+    // 3. Resolve each binding (with optional intent remapping)
     for (const binding of this._bindings) {
-      const { intent, source } = binding;
-      const def = INTENTS[intent];
+      const { source } = binding;
+      let intent = binding.intent;
+
+      // Apply intent remap: redirect binding's intent to a different slot
+      if (this._intentMap) {
+        intent = this._intentMap.get(intent) ?? intent;
+      }
+
+      const def = this._intents[intent];
       if (!def) continue;
 
       const resolved = this._resolveSource(source, binding, kb, gamepad);
       if (resolved === null) continue;
 
       const entry = result[intent];
+      if (!entry) continue;
+
       if (def.type === "digital") {
         if (resolved.active) {
           entry.active = true;
@@ -115,7 +147,7 @@ export class IntentManager {
     }
 
     // 4. Edge detection + debounce
-    for (const name of INTENT_NAMES) {
+    for (const name of this._intentNames) {
       const entry = result[name];
       const wasActive = this._prevActive.get(name);
 
@@ -242,6 +274,83 @@ export class IntentManager {
     }
   }
 
+  // ── Intent remapping ──────────────────────────────────
+
+  /**
+   * Set an intent remap table. Each key is a source intent name whose
+   * bindings will be redirected to the value intent name during poll().
+   *
+   * For a 180° reverse: `{ MOVE_UP: "MOVE_DOWN", MOVE_DOWN: "MOVE_UP",
+   *   MOVE_LEFT: "MOVE_RIGHT", MOVE_RIGHT: "MOVE_LEFT" }`
+   *
+   * For a 90° rotation: `{ MOVE_UP: "MOVE_RIGHT", MOVE_RIGHT: "MOVE_DOWN",
+   *   MOVE_DOWN: "MOVE_LEFT", MOVE_LEFT: "MOVE_UP" }`
+   *
+   * @param {Record<string, string>} map Source intent → target intent
+   */
+  setIntentMap(map) {
+    this._intentMap = new Map(Object.entries(map));
+  }
+
+  /**
+   * Clear the intent remap table, restoring normal intent mapping.
+   */
+  clearIntentMap() {
+    this._intentMap = null;
+  }
+
+  /**
+   * Get the current intent remap table, or null if none is set.
+   * @returns {Record<string, string> | null}
+   */
+  getIntentMap() {
+    if (!this._intentMap) return null;
+    return Object.fromEntries(this._intentMap);
+  }
+
+  // ── Custom intent registration ───────────────────────
+
+  /**
+   * Register a custom intent definition at runtime.
+   * @param {string} name
+   * @param {IntentDef} def
+   */
+  registerIntent(name, def) {
+    if (this._intents[name]) {
+      throw new Error(`Intent "${name}" already exists`);
+    }
+    _validateIntentDef(name, def);
+    this._intents[name] = def;
+    this._intentNames = Object.keys(this._intents);
+    this._prevActive.set(name, false);
+  }
+
+  /**
+   * Remove a custom intent definition. Built-in intents cannot be removed.
+   * @param {string} name
+   */
+  unregisterIntent(name) {
+    if (INTENTS[name]) {
+      throw new Error(`Cannot remove built-in intent "${name}"`);
+    }
+    if (!this._intents[name]) {
+      throw new Error(`Intent "${name}" does not exist`);
+    }
+    delete this._intents[name];
+    this._intentNames = Object.keys(this._intents);
+    this._prevActive.delete(name);
+    this._lastTriggerTime.delete(name);
+    this._debounce.delete(name);
+  }
+
+  /**
+   * Get the current intent registry (built-in + custom).
+   * @returns {Readonly<Record<string, IntentDef>>}
+   */
+  getIntents() {
+    return { ...this._intents };
+  }
+
   /**
    * Detach devices and null references.
    */
@@ -258,6 +367,7 @@ export class IntentManager {
     this._debounce.clear();
     this._prevActive.clear();
     this._lastTriggerTime.clear();
+    this._intentMap = null;
   }
 
   /**
@@ -281,5 +391,19 @@ export class IntentManager {
       }
     }
     return false;
+  }
+}
+
+/**
+ * Validate an intent definition has a valid type.
+ * @param {string} name
+ * @param {IntentDef} def
+ * @private
+ */
+function _validateIntentDef(name, def) {
+  if (!def || (def.type !== "digital" && def.type !== "analog")) {
+    throw new Error(
+      `Intent "${name}" must have type "digital" or "analog", got "${def?.type}"`,
+    );
   }
 }
