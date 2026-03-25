@@ -99,6 +99,56 @@ Keyboard/Gamepad  →  Bindings  →  IntentManager.poll()  →  Intent states
 | Back (8) | `MENU` |
 | Start (9) | `PAUSE` |
 
+## Intent Remapping
+
+Redirect intent bindings at runtime without rebuilding the binding set. Designed for status effects that alter controls (e.g. illness effects in a Bomberman-style game):
+
+```js
+// 180° reverse — up↔down, left↔right
+input.setIntentMap({
+  MOVE_UP: "MOVE_DOWN",
+  MOVE_DOWN: "MOVE_UP",
+  MOVE_LEFT: "MOVE_RIGHT",
+  MOVE_RIGHT: "MOVE_LEFT",
+});
+
+// 90° rotation — up→right→down→left→up
+input.setIntentMap({
+  MOVE_UP: "MOVE_RIGHT",
+  MOVE_RIGHT: "MOVE_DOWN",
+  MOVE_DOWN: "MOVE_LEFT",
+  MOVE_LEFT: "MOVE_UP",
+});
+
+// Restore normal controls
+input.clearIntentMap();
+```
+
+The remap is applied during `poll()` — bindings, edge detection, and debounce all work transparently through it.
+
+## Custom Intents
+
+Games can define intents beyond the built-in 28:
+
+```js
+const input = new IntentManager({
+  customIntents: {
+    PLACE_BOMB: { type: "digital" },
+    ACTIVATE_SPECIAL: { type: "digital" },
+  },
+  bindings: [
+    ...createDefaultKeyboardBindings(),
+    { intent: "PLACE_BOMB", source: { device: "keyboard", code: "Space" } },
+    { intent: "ACTIVATE_SPECIAL", source: { device: "keyboard", code: "KeyE" } },
+  ],
+});
+
+const intent = input.poll();
+if (intent.PLACE_BOMB.justPressed) { /* ... */ }
+```
+
+Custom intents can also be added at runtime with `registerIntent()` and removed with `unregisterIntent()`. They get full binding, edge detection, and debounce support.
+
 ## Custom Bindings
 
 ```js

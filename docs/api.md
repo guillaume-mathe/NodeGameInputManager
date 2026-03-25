@@ -19,6 +19,7 @@ import { IntentManager } from "node-game-input-manager";
 | `bindings` | `Binding[]` | `createDefaultBindings()` | Initial binding set |
 | `debounce` | `Record<string, number>` | `{}` | Per-intent debounce cooldowns in ms |
 | `keyboardTarget` | `EventTarget` | `globalThis` | Element to listen for keyboard events |
+| `customIntents` | `Record<string, IntentDef>` | `{}` | Additional game-specific intents (see [Custom Intents](#custom-intents)) |
 
 ### `poll(): PollResult`
 
@@ -102,9 +103,91 @@ Set a per-intent debounce cooldown. Only suppresses `justPressed` edges — `act
 
 When debounce is active, `justPressed` fires at most once per cooldown window. A held button remains `active: true` but won't re-trigger `justPressed` until the cooldown expires after a release-and-repress.
 
+### Intent Remapping
+
+Runtime intent remapping redirects bindings to different intent slots during `poll()`, without modifying the bindings themselves. Useful for status effects that alter controls (e.g. illness effects that reverse or rotate directional input).
+
+#### `setIntentMap(map)`
+
+Set an intent remap table. Each key is a source intent whose bindings will produce the value intent instead.
+
+| Param | Type | Description |
+|---|---|---|
+| `map` | `Record<string, string>` | Source intent name → target intent name |
+
+```js
+// 180° reverse
+input.setIntentMap({
+  MOVE_UP: "MOVE_DOWN",
+  MOVE_DOWN: "MOVE_UP",
+  MOVE_LEFT: "MOVE_RIGHT",
+  MOVE_RIGHT: "MOVE_LEFT",
+});
+
+// 90° clockwise rotation
+input.setIntentMap({
+  MOVE_UP: "MOVE_RIGHT",
+  MOVE_RIGHT: "MOVE_DOWN",
+  MOVE_DOWN: "MOVE_LEFT",
+  MOVE_LEFT: "MOVE_UP",
+});
+```
+
+The remap applies at binding resolution time — edge detection (`justPressed` / `justReleased`) fires correctly based on the remapped output. When a remap is activated while a key is held, the target intent gets `justPressed` and the source intent gets `justReleased` on the next `poll()`.
+
+Non-remapped intents are unaffected. The remap works with both built-in and custom intents, and with both digital and analog intent types.
+
+#### `clearIntentMap()`
+
+Remove the remap table, restoring normal intent mapping.
+
+#### `getIntentMap(): Record<string, string> | null`
+
+Returns the current remap table as a plain object, or `null` if no remap is active.
+
+### Custom Intents
+
+Games can extend the intent registry beyond the 28 built-in intents.
+
+#### `registerIntent(name, def)`
+
+Register a new intent at runtime. The intent immediately appears in `poll()` results and supports bindings, edge detection, and debounce.
+
+| Param | Type | Description |
+|---|---|---|
+| `name` | `string` | Intent name (e.g. `"PLACE_BOMB"`) |
+| `def` | `IntentDef` | `{ type: "digital" }` or `{ type: "analog" }` |
+
+Throws if the name collides with an existing intent (built-in or custom) or if the type is invalid.
+
+```js
+input.registerIntent("PLACE_BOMB", { type: "digital" });
+input.addBinding({ intent: "PLACE_BOMB", source: { device: "keyboard", code: "Space" } });
+```
+
+#### `unregisterIntent(name)`
+
+Remove a custom intent. Built-in intents cannot be removed.
+
+| Param | Type | Description |
+|---|---|---|
+| `name` | `string` | Intent name to remove |
+
+Throws if the intent is built-in or does not exist. Also removes any associated debounce configuration.
+
+#### `getIntents(): Record<string, IntentDef>`
+
+Returns the full intent registry (built-in + custom) as a plain object.
+
+```js
+const intents = input.getIntents();
+intents.JUMP        // { type: "digital" }  — built-in
+intents.PLACE_BOMB  // { type: "digital" }  — custom
+```
+
 ### `dispose()`
 
-Detach all devices and clear internal state. The instance should not be used after disposal.
+Detach all devices and clear internal state (bindings, debounce, intent remap, edge tracking). The instance should not be used after disposal.
 
 ---
 
@@ -186,7 +269,7 @@ import { INTENTS, INTENT_NAMES } from "node-game-input-manager";
 
 ### `INTENTS: Record<string, { type: "digital" | "analog" }>`
 
-Frozen map of all 28 intent names to their type metadata.
+Frozen map of all 28 built-in intent names to their type metadata. This is the static, module-level registry. For the instance-level registry (including custom intents), use `IntentManager.getIntents()`.
 
 ```js
 INTENTS.JUMP    // { type: "digital" }
@@ -195,7 +278,7 @@ INTENTS.MOVE_X  // { type: "analog" }
 
 ### `INTENT_NAMES: string[]`
 
-Array of all intent name strings. Useful for iteration.
+Array of all built-in intent name strings. Useful for iteration.
 
 ### Intent List
 
